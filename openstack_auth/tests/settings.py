@@ -35,6 +35,10 @@ MIDDLEWARE_CLASSES = [
 
 AUTHENTICATION_BACKENDS = ['openstack_auth.backend.KeystoneBackend']
 
+# AUTH_USER_MODEL has to be in the form of
+# AUTH_USER_MODEL = 'myapp.MyUser'
+AUTH_USER_MODEL = 'openstack_auth.User'
+
 OPENSTACK_KEYSTONE_URL = "http://localhost:5000/v3"
 
 ROOT_URLCONF = 'openstack_auth.tests.urls'

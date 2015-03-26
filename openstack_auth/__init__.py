@@ -13,5 +13,7 @@
 
 import pbr.version
 
+from openstack_auth.user import User  # noqa
+
 
 __version__ = pbr.version.VersionInfo('django_openstack_auth').version_string()

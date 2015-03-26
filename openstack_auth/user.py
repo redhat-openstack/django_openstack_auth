@@ -16,6 +16,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import models
+from django.db import models as dbmodels
 from keystoneclient.common import cms as keystone_cms
 from keystoneclient import exceptions as keystone_exceptions
 
@@ -119,7 +120,7 @@ class Token(object):
         self.serviceCatalog = auth_ref.service_catalog.get_data()
 
 
-class User(models.AnonymousUser):
+class User(models.AbstractBaseUser, models.PermissionsMixin):
     """A User class with some extra special sauce for Keystone.
 
     In addition to the standard Django user attributes, this class also has
@@ -187,13 +188,17 @@ class User(models.AnonymousUser):
         Unscoped Keystone token.
 
     """
+
+    USERNAME_FIELD = 'id'
+    id = dbmodels.CharField(max_length=240, primary_key=True)
+
     def __init__(self, id=None, token=None, user=None, tenant_id=None,
                  service_catalog=None, tenant_name=None, roles=None,
                  authorized_tenants=None, endpoint=None, enabled=False,
                  services_region=None, user_domain_id=None,
                  user_domain_name=None, domain_id=None, domain_name=None,
                  project_id=None, project_name=None,
-                 is_federated=False, unscoped_token=None):
+                 is_federated=False, unscoped_token=None, password=None):
         self.id = id
         self.pk = id
         self.token = token
@@ -218,10 +223,13 @@ class User(models.AnonymousUser):
         # Unscoped token is used for listing user's project that works
         # for both federated and keystone user.
         self.unscoped_token = unscoped_token
+        self.password = None
 
         # List of variables to be deprecated.
         self.tenant_id = self.project_id
         self.tenant_name = self.project_name
+
+        self.USERNAME_FIELD = self.username
 
     def __unicode__(self):
         return self.username
@@ -361,6 +369,22 @@ class User(models.AnonymousUser):
             if self.has_perm(perm, obj):
                 return True
         return False
+
+    # Override the default has_perm method. Default implementation allows
+    # active superusers to have all permissions. Our check is more complicated
+    # than that, service have to check if is available before a panel can be
+    # exposed. Removing the superuser check and delegate the check to the
+    # auth backend.
+    def has_perm(self, perm, obj=None):
+        """Returns True if the user has the specified permission.
+
+        This method queries all available auth backends, but returns
+        immediately if any backend returns True. Thus, a user who has
+        permission from a single auth backend is assumed to have permission
+        in general. If an object is provided, permissions for this specific
+        object are checked.
+        """
+        return models._user_has_perm(self, perm, obj)
 
     # Override the default has_perms method. Allowing for more
     # complex combinations of permissions.  Will check for logical AND of
